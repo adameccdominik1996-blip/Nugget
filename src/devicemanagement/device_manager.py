@@ -115,7 +115,7 @@ class DeviceManager:
             self.pref_manager.settings = settings
         # handle errors when failing to get connected devices
         try:
-            connected_devices = await usbmux.list_devices()
+            connected_devices = usbmux.list_devices()
         except Exception:
             sysmsg = QCoreApplication.tr("If you are on Linux, make sure you have usbmuxd and libimobiledevice installed.")
             if os.name == 'nt':
