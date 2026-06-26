@@ -156,7 +156,7 @@ class DeviceManager:
                             cpu = cpu_type
                     except Exception:
                         show_alert(ApplyAlertMessage(txt=QCoreApplication.tr("Click \"Show Details\" for the traceback."), detailed_txt=str(traceback.format_exc())))
-                    locale = await ld.get_locale()
+                    locale = ld.locale
                     dev = Device(
                             udid=device.serial,
                             usb=device.is_usb,
