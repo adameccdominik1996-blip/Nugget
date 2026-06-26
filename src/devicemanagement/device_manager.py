@@ -129,7 +129,7 @@ class DeviceManager:
         for device in connected_devices:
             if self.pref_manager.apply_over_wifi or device.is_usb:
                 try:
-                    ld = await create_using_usbmux(serial=device.serial)
+                    ld = create_using_usbmux(serial=device.serial)
                     vals = ld.all_values
                     model = vals['ProductType']
                     hardware = vals['HardwareModel']
@@ -287,7 +287,7 @@ class DeviceManager:
     def get_app_hashes(self, bundle_ids: list[str]) -> dict:
         return asyncio.run(self._get_app_hashes(bundle_ids))
     async def _get_app_hashes(self, bundle_ids: list[str]) -> dict:
-        ld = await create_using_usbmux(serial=self.data_singleton.current_device.udid)
+        ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
         apps = await ld.get_apps(application_type="Any", calculate_sizes=False)
         await ld.close()
         results = {}
@@ -303,7 +303,7 @@ class DeviceManager:
         with TemporaryDirectory() as tmpdir:
             # get the bundle id of Pocket Poster
             bundle_id = "com.leemin.Pocket-Poster"
-            ld = await create_using_usbmux(serial=self.data_singleton.current_device.udid)
+            ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
             async with InstallationProxyService(ld) as ips:
                 apps = await ips.get_apps(application_type="User", calculate_sizes=False)
             for app in apps.values():
@@ -330,7 +330,7 @@ class DeviceManager:
         # first, unpair it
         if self.data_singleton.current_device == None:
             return
-        ld = await create_using_usbmux(serial=self.data_singleton.current_device.udid)
+        ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
         await ld.unpair()
         # next, pair it again
         await ld.pair()
@@ -342,7 +342,7 @@ class DeviceManager:
         # TODO: Probably should move this to its own file
         if self.pref_manager.skip_setup and (not self.get_current_device_supported() or restoring_domains):
             # get the already existing cloud config info
-            ld = await create_using_usbmux(serial=self.data_singleton.current_device.udid)
+            ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
             async with MobileConfigService(lockdown=ld) as mcs:
                 cloud_config_plist = await mcs.get_cloud_configuration()
             await ld.close()
@@ -577,7 +577,7 @@ class DeviceManager:
                     connected = False
                     while not connected and max_timeout >= time.time():
                         try:
-                            new_ld = await create_using_usbmux(serial=self.get_current_device_udid(), pair_timeout=180)
+                            new_ld = create_using_usbmux(serial=self.get_current_device_udid(), pair_timeout=180)
                             connected = True
                         except Exception:
                             pass
