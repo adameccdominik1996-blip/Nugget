@@ -15,7 +15,7 @@ async def reboot_device(reboot: bool = False, lockdown_client: LockdownClient = 
     if reboot and lockdown_client != None:
         print("Success! Rebooting your device...")
         async with DiagnosticsService(lockdown_client) as diagnostics_service:
-            await diagnostics_service.restart()
+            diagnostics_service.restart()
         print("Remember to turn Find My back on!")
 
 async def perform_restore(backup: backup.Backup, reboot: bool = False, lockdown_client: LockdownClient = None, progress_callback = lambda x: None):
@@ -24,9 +24,9 @@ async def perform_restore(backup: backup.Backup, reboot: bool = False, lockdown_
             backup.write_to_directory(Path(backup_dir))
 
             if lockdown_client == None:
-                lockdown_client = await create_using_usbmux()
+                lockdown_client = create_using_usbmux()
             async with Mobilebackup2Service(lockdown_client) as mb:
-                await mb.restore(backup_dir, system=True, reboot=False, copy=False, source=".", progress_callback=progress_callback, skip_apps=True)
+                mb.restore(backup_dir, system=True, reboot=False, copy=False, source=".", progress_callback=progress_callback, skip_apps=True)
             # reboot the device
             await reboot_device(reboot, lockdown_client)
     except PyMobileDevice3Exception as e:

@@ -130,7 +130,7 @@ class DeviceManager:
             if self.pref_manager.apply_over_wifi or device.is_usb:
                 try:
                     ld = create_using_usbmux(serial=device.serial)
-                    vals = ld.all_values
+                    vals = ld.get_value()
                     model = vals['ProductType']
                     hardware = vals['HardwareModel']
                     cpu = vals['HardwarePlatform']
@@ -181,7 +181,7 @@ class DeviceManager:
                     print(f"ERROR with lockdown device with UUID {device.serial}")
                     show_alert(ApplyAlertMessage(txt=f"{type(e).__name__}: {repr(e)}", detailed_txt=str(traceback.format_exc())))
                 finally:
-                    await ld.close()
+                    ld.close()
         
         if len(self.devices) > 0:
             self.set_current_device(index=0)
@@ -288,8 +288,8 @@ class DeviceManager:
         return asyncio.run(self._get_app_hashes(bundle_ids))
     async def _get_app_hashes(self, bundle_ids: list[str]) -> dict:
         ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
-        apps = await ld.get_apps(application_type="Any", calculate_sizes=False)
-        await ld.close()
+        apps = InstallationProxyService(ld).get_apps(application_type="Any", calculate_sizes=False)
+        ld.close()
         results = {}
         for bundle_id in bundle_ids:
             app_info = apps[bundle_id]
@@ -305,7 +305,7 @@ class DeviceManager:
             bundle_id = "com.leemin.Pocket-Poster"
             ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
             async with InstallationProxyService(ld) as ips:
-                apps = await ips.get_apps(application_type="User", calculate_sizes=False)
+                apps = ips.get_apps(application_type="User", calculate_sizes=False)
             for app in apps.values():
                 if app["CFBundleExecutable"] == "Pocket Poster":
                     bundle_id = app["CFBundleIdentifier"]
@@ -320,8 +320,8 @@ class DeviceManager:
                     tmpf = os.path.join(tmpdir, fname)
                     with open(tmpf, "w", encoding='UTF-8') as in_file:
                         in_file.write(hashes[key])
-                    await afc.push(tmpf, f"/Documents/{fname}")
-            await ld.close()
+                    afc.push(tmpf, f"/Documents/{fname}")
+            ld.close()
         
 
     def reset_device_pairing(self):
@@ -331,10 +331,10 @@ class DeviceManager:
         if self.data_singleton.current_device == None:
             return
         ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
-        await ld.unpair()
+        ld.unpair()
         # next, pair it again
-        await ld.pair()
-        await ld.close()
+        ld.pair()
+        ld.close()
         QMessageBox.information(None, QCoreApplication.tr("Pairing Reset"), QCoreApplication.tr("Your device's pairing was successfully reset. Refresh the device list before applying."))
         
 
@@ -344,8 +344,8 @@ class DeviceManager:
             # get the already existing cloud config info
             ld = create_using_usbmux(serial=self.data_singleton.current_device.udid)
             async with MobileConfigService(lockdown=ld) as mcs:
-                cloud_config_plist = await mcs.get_cloud_configuration()
-            await ld.close()
+                cloud_config_plist = mcs.get_cloud_configuration()
+            ld.close()
             # add the 2 skip setup files
             cloud_config_plist["SkipSetup"] = [
                     'Location',
@@ -524,7 +524,7 @@ class DeviceManager:
         if self.data_singleton.current_device.connected_via_usb:
             self.do_not_unplug = "\n" + QCoreApplication.tr("DO NOT UNPLUG")
         restore_bookrestore = use_bookrestore and not self.data_singleton.current_device.has_partial_sparserestore()
-        async with await create_using_usbmux(serial=self.data_singleton.current_device.udid) as ld:
+        async with create_using_usbmux(serial=self.data_singleton.current_device.udid) as ld:
             if restore_bookrestore:
                 if self.pref_manager.bookrestore_apply_mode == BookRestoreApplyMethod.AFC:
                     # BookRestore AFC method (for both localhost and on-device)

@@ -11,7 +11,7 @@ def get_idiom(device_class: str) -> str:
 
 def generate_mga(ld: LockdownClient) -> dict:
     # queries the device values and generates a mobile gestalt dictionary to return
-    vals = ld.all_values
+    vals = ld.get_value()
     prod = vals['ProductType']
     device_class = vals['DeviceClass']
     region = vals['RegionInfo'].split("/")

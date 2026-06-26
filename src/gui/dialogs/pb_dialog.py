@@ -113,7 +113,7 @@ class PosterBoardDBWizard(QWizard):
             app_data_path = path.join(QStandardPaths.writableLocation(QStandardPaths.AppDataLocation), 'Backups')
             if not path.exists(app_data_path):
                 makedirs(app_data_path)
-            service_provider = await create_using_usbmux(serial=self.udid)
+            service_provider = create_using_usbmux(serial=self.udid)
             async with Mobilebackup2Service(service_provider) as backup_client:
                 backup_folder = path.join(app_data_path, self.udid)
                 # check if a full backup is needed (makes it faster)
@@ -124,8 +124,8 @@ class PosterBoardDBWizard(QWizard):
                         if not path.exists(path.join(backup_folder, file)):
                             needs_full = True
                             break
-                await backup_client.backup(full=needs_full, backup_directory=app_data_path, progress_callback=update_progress)
-            await service_provider.close()
+                backup_client.backup(full=needs_full, backup_directory=app_data_path, progress_callback=update_progress)
+            service_provider.close()
 
             # get the file, reading the sqlite db first to get the file id
             update_label("Getting the file...")

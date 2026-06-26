@@ -265,7 +265,7 @@ async def generate_bldbmanager(files: list[FileToRestore], out_file: str, afc: A
                 zassetpath = f'{file.restore_path}.zassetpath'
                 media_folder = file_name#f'{nugget_media_folder}/{file_name}'
                 zplistpath = f'/var/mobile/Media/{media_folder}'
-                await afc.set_file_contents(media_folder, file.contents)
+                afc.set_file_contents(media_folder, file.contents)
             else:
                 zdownloadid = ""
                 zassetpath = file.restore_path
@@ -290,12 +290,13 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
     if transfer_mode == BookRestoreFileTransferMethod.LocalHost:
         server_prefix = create_local_server()
 
-    async with AfcService(lockdown=lockdown_client) as afc, ProcessControl(dvt) as pc, OsTraceService(lockdown=lockdown_client) as ostc:
+    async with AfcService(lockdown=lockdown_client) as afc, OsTraceService(lockdown=lockdown_client) as ostc:
+        pc = ProcessControl(dvt)
         # Get Container UUID
         uuid = current_device_uuid_callback().strip()
         if len(uuid) < 10:
             try:
-                await pc.launch("com.apple.iBooks")
+                pc.launch("com.apple.iBooks")
             except Exception as e:
                 raise NuggetException("Error launching books app", detailed_text=repr(e))
             progress_callback("Please open Books app and download a book to continue.")
@@ -367,13 +368,13 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
             """)
             connection.commit()
 
-            procs = (await ostc.get_pid_list()).get("Payload")
+            procs = (ostc.get_pid_list()).get("Payload")
             pid_bookassetd = next((pid for pid, p in procs.items() if p['ProcessName'] == 'bookassetd'), None)
             pid_books = next((pid for pid, p in procs.items() if p['ProcessName'] == 'Books'), None)
             if pid_bookassetd:
-                await pc.signal(pid_bookassetd, 19)
+                pc.signal(pid_bookassetd, 19)
             if pid_books:
-                await pc.kill(pid_books)
+                pc.kill(pid_books)
 
             progress_callback("Uploading files...")
 
@@ -387,7 +388,7 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
                     _, file_name = os.path.split(file.restore_path)
                     print(f"including {file.restore_path}")
                     media_folder = file_name
-                    await afc.set_file_contents(media_folder, file.contents)
+                    afc.set_file_contents(media_folder, file.contents)
             
             async def fast_upload(local_path, remote_path):
                 content = b''
@@ -397,7 +398,7 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
                             content = f.read()
                     except OSError:
                         content = b''
-                await afc.set_file_contents(remote_path, content)
+                afc.set_file_contents(remote_path, content)
 
             await fast_upload(temp_db_path, "Downloads/downloads.28.sqlitedb")
             await fast_upload(temp_db_path + "-shm", "Downloads/downloads.28.sqlitedb-shm")
@@ -416,10 +417,10 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
                 except Exception:
                     pass
 
-        procs = (await ostc.get_pid_list()).get("Payload")
+        procs = (ostc.get_pid_list()).get("Payload")
         pid_itunesstored = next((pid for pid, p in procs.items() if p['ProcessName'] == 'itunesstored'), None)
         if pid_itunesstored:
-            await pc.kill(pid_itunesstored)
+            pc.kill(pid_itunesstored)
         
         timeout = time.time() + 120 
         progress_callback("Waiting for itunesstored to finish download..." + "\n" + "(This might take a minute)")
@@ -433,12 +434,12 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
         pid_bookassetd = next((pid for pid, p in procs.items() if p['ProcessName'] == 'bookassetd'), None)
         pid_books = next((pid for pid, p in procs.items() if p['ProcessName'] == 'Books'), None)
         if pid_bookassetd:
-            await pc.kill(pid_bookassetd)
+            pc.kill(pid_bookassetd)
         if pid_books:
-            await pc.kill(pid_books)
+            pc.kill(pid_books)
         
         try:
-            await pc.launch("com.apple.iBooks")
+            pc.launch("com.apple.iBooks")
         except Exception as e:
             raise NuggetException("Error launching Books app", detailed_text=repr(e))
         
@@ -459,7 +460,7 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
                 # respring anyway even if it is not detected that all files overwrote
                 break
                 # raise Exception("Timed out waiting for file, please try again.")
-        await pc.kill(pid_bookassetd)
+        pc.kill(pid_bookassetd)
         if transfer_mode == BookRestoreFileTransferMethod.LocalHost:
             close_dl_connection()
             remove_db_files(temp_dl_manager)
@@ -469,9 +470,9 @@ async def apply_bookrestore_files(files: list[FileToRestore], lockdown_client: L
             reboot_device(True, lockdown_client=lockdown_client)
         else:
             progress_callback("Respringing")
-            procs = (await ostc.get_pid_list()).get("Payload")
+            procs = (ostc.get_pid_list()).get("Payload")
             pid = next((pid for pid, p in procs.items() if p['ProcessName'] == 'backboardd'), None)
-            await pc.kill(pid)
+            pc.kill(pid)
 
 async def perform_bookrestore(files: list[FileToRestore], lockdown_client: LockdownClient,
                         current_device_books_uuid_callback = lambda x: None, progress_callback = lambda x: None,
@@ -480,7 +481,7 @@ async def perform_bookrestore(files: list[FileToRestore], lockdown_client: Lockd
     if not lockdown_client.developer_mode_status:
         # enable developer mode
         progress_callback("Enabling Developer Mode...")
-        await AmfiService(lockdown=lockdown_client).reveal_developer_mode_option_in_ui()
+        AmfiService(lockdown=lockdown_client).reveal_developer_mode_option_in_ui()
         raise NuggetException("You must enable developer mode on your device. You can do it in the Settings app.\n\nClick \"Show Details\" for more information.",
                               detailed_text="BookRestore tweaks with the AFC method require developer mode to apply.\n\nYou can enable this at the bottom of Settings > Privacy & Security > Developer Mode on your iPhone or iPad.")
     if os.name == 'nt':
